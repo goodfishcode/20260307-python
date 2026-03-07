@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>股票分析面板 Pro</title>
+
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+
+body{
+    margin:0;
+    font-family:Arial;
+    background:#0f172a;
+    color:white;
+}
+
+#header{
+    background:#1e293b;
+    padding:10px;
+    display:flex;
+    gap:10px;
+}
+
+#chart{
+    height:500px;
+}
+
+#rsi{
+    height:200px;
+}
+
+input,button{
+    padding:6px 10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="header">
+<input id="symbol" value="AAPL">
+<button onclick="loadData()">重新生成資料</button>
+</div>
+
+<div id="chart"></div>
+<div id="rsi"></div>
+
+<script>
+
+const chart = LightweightCharts.createChart(document.getElementById('chart'),{
+    layout:{
+        background:{color:"#0f172a"},
+        textColor:"#DDD"
+    },
+    grid:{
+        vertLines:{color:"#1f2937"},
+        horzLines:{color:"#1f2937"}
+    },
+    width:window.innerWidth,
+    height:500
+});
+
+const rsiChart = LightweightCharts.createChart(document.getElementById('rsi'),{
+    layout:{
+        background:{color:"#0f172a"},
+        textColor:"#DDD"
+    },
+    width:window.innerWidth,
+    height:200
+});
+
+const candleSeries = chart.addCandlestickSeries();
+
+const volumeSeries = chart.addHistogramSeries({
+    priceFormat:{
+        type:'volume'
+    },
+    priceScaleId:'',
+});
+
+const ma5 = chart.addLineSeries({color:'#facc15',lineWidth:2});
+const ma20 = chart.addLineSeries({color:'#38bdf8',lineWidth:2});
+
+const rsiSeries = rsiChart.addLineSeries({
+    color:'#a78bfa',
+    lineWidth:2
+});
+
+function generateData(){
+
+    let data=[];
+    let volume=[];
+    let price=100;
+
+    for(let i=0;i<100;i++){
+
+        let open=price;
+        let close=open+(Math.random()-0.5)*5;
+        let high=Math.max(open,close)+Math.random()*2;
+        let low=Math.min(open,close)-Math.random()*2;
+
+        price=close;
+
+        let time=1670000000+i*86400;
+
+        data.push({
+            time,
+            open,
+            high,
+            low,
+            close
+        });
+
+        volume.push({
+            time,
+            value:Math.random()*1000
+        })
+    }
+
+    return {data,volume}
+}
+
+function calcMA(data,length){
+
+    let result=[];
+
+    for(let i=0;i<data.length;i++){
+
+        if(i<length){
+            result.push({time:data[i].time,value:null});
+            continue;
+        }
+
+        let sum=0;
+
+        for(let j=0;j<length;j++){
+            sum+=data[i-j].close;
+        }
+
+        result.push({
+            time:data[i].time,
+            value:sum/length
+        })
+    }
+
+    return result
+}
+
+function calcRSI(data,period=14){
+
+    let result=[];
+    let gains=0;
+    let losses=0;
+
+    for(let i=1;i<data.length;i++){
+
+        let diff=data[i].close-data[i-1].close;
+
+        if(diff>0) gains+=diff;
+        else losses-=diff;
+
+        if(i>=period){
+
+            let rs=gains/losses;
+            let rsi=100-(100/(1+rs));
+
+            result.push({
+                time:data[i].time,
+                value:rsi
+            });
+
+            gains=0;
+            losses=0;
+        }
+    }
+
+    return result;
+}
+
+function loadData(){
+
+    let {data,volume}=generateData();
+
+    candleSeries.setData(data);
+    volumeSeries.setData(volume);
+
+    ma5.setData(calcMA(data,5));
+    ma20.setData(calcMA(data,20));
+
+    rsiSeries.setData(calcRSI(data));
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
